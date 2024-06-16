@@ -1,7 +1,4 @@
 import streamlit as st
-import requests
-import json
-import plotly.figure_factory as ff
 import pandas as pd
 
 from src.design import create_library
