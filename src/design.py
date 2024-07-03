@@ -57,6 +57,8 @@ def calculate_overlap(base_promoter, promoters):
 def calculate_tx_rates(promoters):
 
     for i in range(0, len(promoters)):
+        print(promoters)
+        print(promoters[i])
         seq = promoters[i]["seq"]
         results = promoter_calculator(sequence=seq, threads=4)
         # Find the best promoter

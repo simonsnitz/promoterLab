@@ -5,6 +5,8 @@ from src.design import create_library
 from src.design import calculate_overlap
 from src.design import calculate_tx_rates
 
+from promoter_calculator import promoter_calculator
+
 
 st.set_page_config(page_title="promoterCAD", layout='wide', initial_sidebar_state='auto')
 
@@ -72,6 +74,11 @@ base_promoter = sel2.text_input(label="Base promoter", value=promoter)
 
 operator = sel2.text_input(label="Operator", value="ATTTGGTTAGACATCTAACGAAAT")
 
+operation = sel2.radio("operation", ["predict Tx rate", "Design promoters"])
+
+
+
+
 
 # FORM
 with st.form(key='promoterLab'):
@@ -81,39 +88,66 @@ with st.form(key='promoterLab'):
     submit_spacer_1, submit_button, submit_spacer_2 = submit.columns([5,1,5])
     submitted = submit_button.form_submit_button("Submit", use_container_width=True, on_click=_connect_form_cb, args=(True,))
 
-# RUN PROMOTERLAB
-if st.session_state.SUBMITTED:
 
-    output = st.container()
-    spacer1, outputTable, spacer2 = output.columns([1,3,1])
+    # RUN PROMOTERLAB
+    if st.session_state.SUBMITTED:
 
-    with st.spinner("creating promoter library"):
+        if operation == "predict Tx rate":
 
-        promoters = create_library(operator, base_promoter)
+            results = promoter_calculator(sequence=base_promoter, threads=4)
+            # Find the best promoter
+            max_promoter = 0
+            prom_deets = 0
+            for promoter in results:
+                if promoter.strand == "+":
+                    if promoter.Tx_rate > max_promoter:
+                        max_promoter = round(promoter.Tx_rate, 2)
+                        prom_deets = promoter
+            
+            st.subheader("Transcription rate: "+str(max_promoter))
+            st.markdown("Promoter sequence: "+str(prom_deets.promoter_sequence))
+            st.text("UP element: "+str(prom_deets.UP))
+            st.text("-35: "+str(prom_deets.hex35))
+            st.text("Spacer: "+str(prom_deets.spacer))
+            st.text("-10: "+str(prom_deets.hex10))
+            st.text("disc: "+str(prom_deets.disc))
+            st.text("ITR: "+str(prom_deets.ITR))
+
+        elif operation == "Design promoters":
 
 
-    with st.spinner("calculating overlap scores"):
+            output = st.container()
+            spacer1, outputTable, spacer2 = output.columns([1,3,1])
 
-        promoters = calculate_overlap(base_promoter, promoters)
+            with st.spinner("creating promoter library"):
+
+                promoters = create_library(operator, base_promoter)
+                tx_rates = [i["tx_rate"] for i in promoters]
+                st.text(tx_rates)
 
 
-    with st.spinner("calculating transcription rates"):
+            with st.spinner("calculating overlap scores"):
 
-        promoters = calculate_tx_rates(promoters)
+                promoters = calculate_overlap(base_promoter, promoters)
+
+
+            with st.spinner("calculating transcription rates"):
+
+                promoters = calculate_tx_rates(promoters)
 
 
 
-    # Plot
+            # Plot
 
-    x = [i for i in range(0, len(promoters))]
-    promoter_seqs = [i["seq"] for i in promoters]
-    overlap_scores = [i["score"] for i in promoters]
-    tx_rates = [i["tx_rate"] for i in promoters]
-    for i in range(0, len(promoters)):
-        promoters[i]["index"] = i
+            x = [i for i in range(0, len(promoters))]
+            promoter_seqs = [i["seq"] for i in promoters]
+            overlap_scores = [i["score"] for i in promoters]
+            tx_rates = [i["tx_rate"] for i in promoters]
+            for i in range(0, len(promoters)):
+                promoters[i]["index"] = i
 
-    outputTable.dataframe(data=promoters, height=350, width=1000)
+            outputTable.dataframe(data=promoters, height=350, width=1000)
 
-    chart_data = pd.DataFrame(promoters, columns=["seq", "score", "tx_rate", "index"])
+            chart_data = pd.DataFrame(promoters, columns=["seq", "score", "tx_rate", "index"])
 
-    st.scatter_chart(data=chart_data, x="tx_rate", y="score", color="index", height=600)
+            st.scatter_chart(data=chart_data, x="tx_rate", y="score", color="index", height=600)
