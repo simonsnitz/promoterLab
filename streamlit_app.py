@@ -122,8 +122,6 @@ with st.form(key='promoterLab'):
             with st.spinner("creating promoter library"):
 
                 promoters = create_library(operator, base_promoter)
-                tx_rates = [i["tx_rate"] for i in promoters]
-                st.text(tx_rates)
 
 
             with st.spinner("calculating overlap scores"):
