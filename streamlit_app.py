@@ -1,9 +1,12 @@
 import streamlit as st
 import pandas as pd
+import json
 
 from src.design import create_library
 from src.design import calculate_overlap
 from src.design import calculate_tx_rates
+from src.genbank.CDS_utils import accID2seq, codon_opt, download_cds_df
+from src.genbank.promoter_utils import download_promoter_df
 
 from promoter_calculator import promoter_calculator
 
@@ -70,12 +73,38 @@ selection_container = st.container()
 sel1, sel2, sel3 = selection_container.columns((1,2,1))
 
 promoter = "aaaaatggcgcccatcggcgccatttttttatggccatgtattaaaatatatttttcaaaagtatcgTTGACGgcgtatctcttgctttcTATAATgctatcgatcgatcgtctaattgagctgtcaccggatgtgctt"
+
+
+protein = sel2.text_input(label="Protein ID", value="WP_013083972.1")
 base_promoter = sel2.text_input(label="Base promoter", value=promoter)
-
 operator = sel2.text_input(label="Operator", value="ATTTGGTTAGACATCTAACGAAAT")
+promoter_name = sel2.text_input(label="Promoter_name", value="Pmttr")
 
-operation = sel2.radio("operation", ["predict Tx rate", "Design promoters"])
+operation = sel2.radio("operation", ["Create CDS assembly part", "Predict Tx rate", "Design promoters"])
 
+
+
+def predict_tx_rate(seq):
+    results = promoter_calculator(sequence=seq, threads=4)
+    # Find the best promoter
+    max_promoter = 0
+    prom_deets = 0
+    for promoter in results:
+        if promoter.strand == "+":
+            if promoter.Tx_rate > max_promoter:
+                max_promoter = round(promoter.Tx_rate, 2)
+                prom_deets = promoter
+    
+    # st.subheader("Transcription rate: "+str(max_promoter))
+    # st.markdown("Promoter sequence: "+str(prom_deets.promoter_sequence))
+    # st.text("UP element: "+str(prom_deets.UP))
+    # st.text("-35: "+str(prom_deets.hex35))
+    # st.text("Spacer: "+str(prom_deets.spacer))
+    # st.text("-10: "+str(prom_deets.hex10))
+    # st.text("disc: "+str(prom_deets.disc))
+    # st.text("ITR: "+str(prom_deets.ITR))
+
+    return prom_deets
 
 
 
@@ -92,26 +121,24 @@ with st.form(key='promoterLab'):
     # RUN PROMOTERLAB
     if st.session_state.SUBMITTED:
 
-        if operation == "predict Tx rate":
+        if operation == "Predict Tx rate":
 
-            results = promoter_calculator(sequence=base_promoter, threads=4)
-            # Find the best promoter
-            max_promoter = 0
-            prom_deets = 0
-            for promoter in results:
-                if promoter.strand == "+":
-                    if promoter.Tx_rate > max_promoter:
-                        max_promoter = round(promoter.Tx_rate, 2)
-                        prom_deets = promoter
-            
-            st.subheader("Transcription rate: "+str(max_promoter))
-            st.markdown("Promoter sequence: "+str(prom_deets.promoter_sequence))
-            st.text("UP element: "+str(prom_deets.UP))
-            st.text("-35: "+str(prom_deets.hex35))
-            st.text("Spacer: "+str(prom_deets.spacer))
-            st.text("-10: "+str(prom_deets.hex10))
-            st.text("disc: "+str(prom_deets.disc))
-            st.text("ITR: "+str(prom_deets.ITR))
+            out = predict_tx_rate(base_promoter)
+
+
+
+        elif operation == "Create CDS assembly part":
+
+            protein_fasta = accID2seq(protein)
+            CDS = codon_opt(protein_fasta)
+
+            output = st.container()
+            spacer1, out, spacer2 = output.columns([1,3,1])   
+
+            out.form_submit_button(label="Download CDS Part", type="primary", on_click=download_cds_df, args=(protein, CDS))
+
+
+
 
         elif operation == "Design promoters":
 
@@ -119,33 +146,51 @@ with st.form(key='promoterLab'):
             output = st.container()
             spacer1, outputTable, spacer2 = output.columns([1,3,1])
 
-            with st.spinner("creating promoter library"):
 
-                promoters = create_library(operator, base_promoter)
+            # For testing purposes:
+
+                # promoters = create_library(operator, base_promoter)
+                # promoters = calculate_overlap(base_promoter, promoters)
+                # with st.spinner("calculating transcription rates"):
+                #     promoters = calculate_tx_rates(promoters)
+
+            with open("promoters.json", "r") as f:
+                promoters = json.load(f)
 
 
-            with st.spinner("calculating overlap scores"):
+            # select the best promoter
+            strong = [p for p in promoters if p["tx_rate"] > 15000]
+            highest_overlap = max([s["score"] for s in strong])
+            best = [b for b in strong if b["score"] == highest_overlap][0]
+            overlap_score = best["score"]
 
-                promoters = calculate_overlap(base_promoter, promoters)
+            # get position of operator
+            op_positions = []
+            for i in range(0,len(best["seq"])):
+                if best["seq"][i].isupper() == True:
+                    op_positions.append(i)
+            op_positions = [min(op_positions),max(op_positions)]
 
 
-            with st.spinner("calculating transcription rates"):
+            prom_deets = predict_tx_rate(best['seq'])
 
-                promoters = calculate_tx_rates(promoters)
+            output = st.container()
+            spacer1, out, spacer2 = output.columns([1,3,1])  
 
+            out.form_submit_button(label="Download Promoter Part", type="primary", on_click=download_promoter_df, args=(promoter_name, prom_deets, op_positions, overlap_score))
 
 
             # Plot
 
-            x = [i for i in range(0, len(promoters))]
-            promoter_seqs = [i["seq"] for i in promoters]
-            overlap_scores = [i["score"] for i in promoters]
-            tx_rates = [i["tx_rate"] for i in promoters]
-            for i in range(0, len(promoters)):
-                promoters[i]["index"] = i
+            # x = [i for i in range(0, len(promoters))]
+            # promoter_seqs = [i["seq"] for i in promoters]
+            # overlap_scores = [i["score"] for i in promoters]
+            # tx_rates = [i["tx_rate"] for i in promoters]
+            # for i in range(0, len(promoters)):
+            #     promoters[i]["index"] = i
 
-            outputTable.dataframe(data=promoters, height=350, width=1000)
+            # outputTable.dataframe(data=promoters, height=350, width=1000)
 
-            chart_data = pd.DataFrame(promoters, columns=["seq", "score", "tx_rate", "index"])
+            # chart_data = pd.DataFrame(promoters, columns=["seq", "score", "tx_rate", "index"])
 
-            st.scatter_chart(data=chart_data, x="tx_rate", y="score", color="index", height=600)
+            # st.scatter_chart(data=chart_data, x="tx_rate", y="score", color="index", height=600)
