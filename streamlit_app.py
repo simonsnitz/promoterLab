@@ -65,7 +65,6 @@ def _connect_form_cb(connect_status):
 head = st.container()
 head1, head2, head3 = head.columns((1,1,1))
 
-# head2.image("images/Snowprint_Logo.png", use_column_width=True)
 head2.image("images/promoterLab_logo.png", use_column_width=True)
 head2.markdown("<h3 style='text-align: center; color: black;'>Design ligand-inducible promoters for prokaryotes</h3>", unsafe_allow_html=True)
 
@@ -92,17 +91,8 @@ def predict_tx_rate(seq):
     for promoter in results:
         if promoter.strand == "+":
             if promoter.Tx_rate > max_promoter:
-                max_promoter = round(promoter.Tx_rate, 2)
+                max_promoter = promoter.Tx_rate
                 prom_deets = promoter
-    
-    # st.subheader("Transcription rate: "+str(max_promoter))
-    # st.markdown("Promoter sequence: "+str(prom_deets.promoter_sequence))
-    # st.text("UP element: "+str(prom_deets.UP))
-    # st.text("-35: "+str(prom_deets.hex35))
-    # st.text("Spacer: "+str(prom_deets.spacer))
-    # st.text("-10: "+str(prom_deets.hex10))
-    # st.text("disc: "+str(prom_deets.disc))
-    # st.text("ITR: "+str(prom_deets.ITR))
 
     return prom_deets
 
@@ -123,13 +113,24 @@ with st.form(key='promoterLab'):
 
         if operation == "Predict Tx rate":
 
-            out = predict_tx_rate(base_promoter)
+            prom_deets = predict_tx_rate(base_promoter)
+            max_promoter = round(prom_deets.Tx_rate, 2)
+
+            st.subheader("Transcription rate: "+str(max_promoter))
+            st.markdown("Promoter sequence: "+str(prom_deets.promoter_sequence))
+            st.text("UP element: "+str(prom_deets.UP))
+            st.text("-35: "+str(prom_deets.hex35))
+            st.text("Spacer: "+str(prom_deets.spacer))
+            st.text("-10: "+str(prom_deets.hex10))
+            st.text("disc: "+str(prom_deets.disc))
+            st.text("ITR: "+str(prom_deets.ITR))
 
 
 
         elif operation == "Create CDS assembly part":
 
             protein_fasta = accID2seq(protein)
+
             CDS = codon_opt(protein_fasta)
 
             output = st.container()
@@ -147,15 +148,14 @@ with st.form(key='promoterLab'):
             spacer1, outputTable, spacer2 = output.columns([1,3,1])
 
 
+            promoters = create_library(operator, base_promoter)
+            promoters = calculate_overlap(base_promoter, promoters)
+            with st.spinner("calculating transcription rates"):
+                promoters = calculate_tx_rates(promoters)
+
             # For testing purposes:
-
-                # promoters = create_library(operator, base_promoter)
-                # promoters = calculate_overlap(base_promoter, promoters)
-                # with st.spinner("calculating transcription rates"):
-                #     promoters = calculate_tx_rates(promoters)
-
-            with open("promoters.json", "r") as f:
-                promoters = json.load(f)
+            # with open("promoters.json", "r") as f:
+            #     promoters = json.load(f)
 
 
             # select the best promoter
