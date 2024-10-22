@@ -63,7 +63,7 @@ def codon_opt(protein_seq:str):
 
 
 
-def create_genbank(part_name, CDS):
+def create_genbank(part_name, CDS, protein_name):
 
     upstream_CDS = "GCACTGCTCACTGCATCGATACATGacggtctcaT"
     downstream_CDS = "taATCCtgagacctgGGATGAGTCAGCATCGAGCACAGAC"
@@ -84,15 +84,15 @@ def create_genbank(part_name, CDS):
     "strand": 1},
 
     {"type": "misc_feature",
-    "label": str(part_name),
-    "color": "#bf70ff",
+    "label": str(protein_name),
+    "color": "#cfa8ff",
     "start": 35,
     "end": 35+len(CDS),
     "strand": 1},
 
     {"type": "CDS",
-    "label": str(part_name),
-    "color": "#bf70ff",
+    "label": str(protein_name),
+    "color": "#cfa8ff",
     "start": 35,
     "end": 35+len(CDS),
     "strand": 1,
@@ -127,7 +127,7 @@ def create_genbank(part_name, CDS):
     plasmid_sequence = Seq(seq)
     record = SeqRecord(plasmid_sequence,
                     id=str(part_name),
-                    name=part_name,
+                    name=str(protein_name)+"_CDS",
                     description='This is a genetic assembly part designed by promoterLab',
                     annotations={"molecule_type": "DNA"})
 
@@ -205,15 +205,15 @@ def download_button(object_to_download, download_filename):
     return dl_link
 
 
-def download_cds_df(part_name, CDS):
+def download_cds_df(part_name, CDS, protein_name):
     
 
-    data = create_genbank(part_name, CDS)
+    data = create_genbank(part_name, CDS, protein_name)
     '''
     Having trouble downloading the GenBank file when not locally hosted, so we'll just display it in the browser.
     '''
     components.html(
-        download_button(data, str(part_name)+"_CDS-part.gb"),
+        download_button(data, str(protein_name)+"_CDS-part.gb"),
         height=0,
     )
 

@@ -75,6 +75,7 @@ promoter = "aaaaatggcgcccatcggcgccatttttttatggccatgtattaaaatatatttttcaaaagtatcgT
 
 
 protein = sel2.text_input(label="Protein ID", value="WP_013083972.1")
+protein_name = sel2.text_input(label="Protein Name", value="TetR")
 base_promoter = sel2.text_input(label="Base promoter", value=promoter)
 operator = sel2.text_input(label="Operator", value="ATTTGGTTAGACATCTAACGAAAT")
 promoter_name = sel2.text_input(label="Promoter_name", value="Pmttr")
@@ -136,7 +137,7 @@ with st.form(key='promoterLab'):
             output = st.container()
             spacer1, out, spacer2 = output.columns([1,3,1])   
 
-            out.form_submit_button(label="Download CDS Part", type="primary", on_click=download_cds_df, args=(protein, CDS))
+            out.form_submit_button(label="Download CDS Part", type="primary", on_click=download_cds_df, args=(protein, CDS, protein_name))
 
 
 
